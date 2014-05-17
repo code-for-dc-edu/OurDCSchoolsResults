@@ -36,19 +36,8 @@ datc_long <- subset(datc_long, Response>0)
 datc_long <- mutate(datc_long,
                     Ward=as.numeric(str_extract(Ward, "\\d")))
 
-datc_pam <- pam(datc, k=3)
-
-patterns <- datc_pam$medoids
-
-patterns <- as.data.frame(patterns)
-patterns$id <- rownames(patterns)
-
-patterns <- melt(patterns, id.vars='id', variable.name='Question', value.name='Response')
-
-# ggplot(datc_long, aes(Question, Response, group=resp, color=Ward)) + 
-#     geom_line(alpha=.2, position='jitter') +
-#     coord_flip() + 
-#     theme_bw() + theme(legend.position='none')
+#print(head(datc))
+#print(head(datc_long))
 
 Mode <- function(x) {
     ux <- unique(x)
@@ -56,7 +45,7 @@ Mode <- function(x) {
 }
 
 shinyServer(function(input, output) {
-   
+    
   output$wardHistPlot <- renderPlot({
      
     # generate and plot an rnorm distribution with the requested
@@ -68,7 +57,7 @@ shinyServer(function(input, output) {
     print(pl)
   })
   
-  output$patternPlot <- renderPlot({
+  output$wardsPlot <- renderPlot({
       dat_to_plot <- if (input$ward == 'All') datc_long else subset(datc_long, Ward==input$ward)
       pl <- ggplot(dat_to_plot, aes(Question, Response, group=resp)) + 
           geom_line(alpha=.2, position=position_jitter(w=.2, h=.2)) +
@@ -79,5 +68,25 @@ shinyServer(function(input, output) {
           theme_bw() + theme(legend.position='none')
       print(pl)
       
+  })
+  
+  output$patternsPlot <- renderPlot({
+      datc_pam <- pam(subset(datc, select=-Ward), k=as.numeric(input$clusters))
+      
+      patterns <- datc_pam$medoids
+      
+      patterns <- as.data.frame(patterns)
+      patterns$id <- rownames(patterns)
+      
+      patterns <- melt(patterns, id.vars='id', variable.name='Question', value.name='Response')
+      #print(head(patterns))
+      pl <- ggplot(datc_long, aes(Question, Response, group=resp)) + 
+          geom_line(alpha=.2, position=position_jitter(w=.2, h=.2)) +
+          geom_line(data=patterns, mapping=aes(group=id, color=id), size=3, alpha=.7) + 
+          scale_y_continuous("",  breaks=(1:5), labels=c('Frown', '', 'Neutral', '', 'Smile'))+ 
+          scale_x_discrete("") + 
+          coord_flip(ylim=c(.5,5.5)) + 
+          theme_bw() + theme(legend.position='none')
+      print(pl)
   })
 })
